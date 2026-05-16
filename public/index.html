@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPGo – Heroes of the Real World</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── Login ───────────────────────────────────────────────────────── -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-logo">⚔️</div>
+      <h1>RPGo</h1>
+      <p class="subtitle">Heroes of the Real World</p>
+
+      <div class="field">
+        <label>Your Hero Name</label>
+        <input id="player-name" type="text" placeholder="Enter a name…" maxlength="20" autocomplete="off">
+      </div>
+
+      <button id="start-btn" onclick="startGame()">Begin Adventure</button>
+      <p class="hint">Uses your device location to place you on the map.<br>Click anywhere on the map to move your hero.</p>
+    </div>
+  </div>
+
+  <!-- ── Game ────────────────────────────────────────────────────────── -->
+  <div id="game-screen" class="hidden">
+    <div id="map"></div>
+
+    <div id="sidebar">
+      <div class="sidebar-hero">
+        <div id="hero-name">⚔️ Hero</div>
+        <div id="hero-grid" class="dim">Grid —</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📦 Inventory</div>
+        <div id="inventory"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">👥 Nearby Heroes</div>
+        <div id="nearby-players"><span class="dim">Scanning…</span></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">📜 Log</div>
+        <div id="activity-log"></div>
+      </div>
+    </div>
+
+    <!-- Floating collect popup -->
+    <div id="collect-popup" class="hidden">
+      <div id="popup-icon"></div>
+      <div id="popup-text"></div>
+    </div>
+
+    <!-- Zoom hint -->
+    <div id="zoom-hint" class="hidden">Zoom in to see resources</div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

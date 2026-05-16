@@ -1,0 +1,9 @@
+{
+  "name": "rpgo",
+  "version": "0.1.0",
+  "scripts": {
+    "install": "cd backend && npm install",
+    "start": "cd backend && node server.js",
+    "dev": "cd backend && node --watch server.js"
+  }
+}
