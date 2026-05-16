@@ -1,29 +1,22 @@
 const express = require('express');
-const path = require('path');
-const fs   = require('fs');
+const path    = require('path');
 const { v4: uuidv4 } = require('uuid');
+const { createClient } = require('@supabase/supabase-js');
 
-const app = express();
+const app  = express();
 const PORT = process.env.PORT || 3000;
+
+const SUPABASE_URL = process.env.SUPABASE_URL || 'https://vfypgzvvdlukazupejzh.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
+if (!SUPABASE_KEY) { console.error('SUPABASE_KEY env var is required'); process.exit(1); }
+
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
 const CELL_SIZE  = 0.001;
-const RESPAWN_MS = 5 * 60_000; // 5 minutes
+const RESPAWN_MS = 5 * 60_000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../public')));
-
-// ── JSON file store (no native deps needed) ───────────────────────────────
-
-const DB_FILE = path.join(__dirname, 'game.json');
-
-function loadDb() {
-  try { return JSON.parse(fs.readFileSync(DB_FILE, 'utf8')); } catch {
-    return { players: {}, collected: {} };
-  }
-}
-
-function saveDb(data) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(data), 'utf8');
-}
 
 // ── Shared hash/resource logic (mirrors client) ───────────────────────────
 
@@ -67,91 +60,126 @@ function latLngToGrid(lat, lng) {
 
 // ── Routes ────────────────────────────────────────────────────────────────
 
-app.post('/api/player/join', (req, res) => {
+app.post('/api/player/join', async (req, res) => {
   const { name, lat, lng } = req.body;
   if (!name || lat == null || lng == null)
     return res.status(400).json({ error: 'missing fields' });
 
   const { gridX, gridY } = latLngToGrid(lat, lng);
   const now = Date.now();
-  const data = loadDb();
 
-  let player = Object.values(data.players).find(p => p.name === name);
-  if (!player) {
-    const id = uuidv4();
-    player = { id, name, lat, lng, gridX, gridY, last_seen: now, inventory: {} };
-    data.players[id] = player;
-  } else {
-    Object.assign(player, { lat, lng, gridX, gridY, last_seen: now });
+  const { data: existing } = await db
+    .from('players')
+    .select('*')
+    .eq('name', name)
+    .maybeSingle();
+
+  if (existing) {
+    const { data: player, error } = await db
+      .from('players')
+      .update({ lat, lng, grid_x: gridX, grid_y: gridY, last_seen: now })
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ id: player.id, name: player.name, lat, lng, gridX: player.grid_x, gridY: player.grid_y, inventory: player.inventory || {} });
   }
 
-  saveDb(data);
-  res.json({ id: player.id, name: player.name, lat, lng, gridX, gridY, inventory: player.inventory });
+  const id = uuidv4();
+  const { data: player, error } = await db
+    .from('players')
+    .insert({ id, name, lat, lng, grid_x: gridX, grid_y: gridY, last_seen: now, inventory: {} })
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ id: player.id, name: player.name, lat, lng, gridX: player.grid_x, gridY: player.grid_y, inventory: player.inventory || {} });
 });
 
-app.post('/api/player/move', (req, res) => {
+app.post('/api/player/move', async (req, res) => {
   const { playerId, lat, lng, gridX, gridY } = req.body;
-  const data = loadDb();
-  if (data.players[playerId])
-    Object.assign(data.players[playerId], { lat, lng, gridX, gridY, last_seen: Date.now() });
-  saveDb(data);
+  const { error } = await db
+    .from('players')
+    .update({ lat, lng, grid_x: gridX, grid_y: gridY, last_seen: Date.now() })
+    .eq('id', playerId);
+  if (error) return res.status(500).json({ error: error.message });
   res.json({ ok: true });
 });
 
-app.get('/api/resources', (req, res) => {
-  const now  = Date.now();
-  const data = loadDb();
+app.get('/api/resources', async (req, res) => {
+  const cutoff = Date.now() - RESPAWN_MS;
+  const { data, error } = await db
+    .from('collected')
+    .select('key, collected_at')
+    .gt('collected_at', cutoff);
+  if (error) return res.status(500).json({ error: error.message });
+
   const collected = {};
-  for (const [k, v] of Object.entries(data.collected)) {
-    if (now - v.collected_at < RESPAWN_MS) collected[k] = v.collected_at;
-  }
-  res.json({ collected, now });
+  for (const row of data) collected[row.key] = row.collected_at;
+  res.json({ collected, now: Date.now() });
 });
 
-app.post('/api/collect', (req, res) => {
+app.post('/api/collect', async (req, res) => {
   try {
     const { playerId, gridX, gridY } = req.body;
-    console.log('collect request:', { playerId, gridX, gridY });
-
-    const key  = `${gridX}_${gridY}`;
-    const now  = Date.now();
-    const data = loadDb();
+    const key = `${gridX}_${gridY}`;
+    const now = Date.now();
 
     const resourceType = getResourceType(Number(gridX), Number(gridY));
     if (!resourceType) return res.status(400).json({ error: 'no resource at this cell' });
 
-    const existing = data.collected[key];
-    if (existing && now - existing.collected_at < RESPAWN_MS) {
+    const cutoff = now - RESPAWN_MS;
+    const { data: existing } = await db
+      .from('collected')
+      .select('collected_at')
+      .eq('key', key)
+      .gt('collected_at', cutoff)
+      .maybeSingle();
+
+    if (existing) {
       const respawnsIn = Math.ceil((RESPAWN_MS - (now - existing.collected_at)) / 1000);
       return res.status(409).json({ error: 'already collected', respawnsIn });
     }
 
-    const player = data.players[playerId];
-    if (!player) return res.status(404).json({ error: 'player not found' });
+    const { data: player, error: pErr } = await db
+      .from('players')
+      .select('*')
+      .eq('id', playerId)
+      .single();
+    if (pErr || !player) return res.status(404).json({ error: 'player not found' });
 
-    data.collected[key] = { collected_by: playerId, collected_at: now, resource_type: resourceType };
-    player.inventory[resourceType] = (player.inventory[resourceType] || 0) + 1;
+    const inventory = { ...(player.inventory || {}) };
+    inventory[resourceType] = (inventory[resourceType] || 0) + 1;
 
-    saveDb(data);
-    console.log('collect ok:', resourceType, 'for', player.name);
-    res.json({ ok: true, inventory: player.inventory, resourceType });
+    const [collectResult, invResult] = await Promise.all([
+      db.from('collected').upsert({ key, collected_by: playerId, collected_at: now, resource_type: resourceType }),
+      db.from('players').update({ inventory }).eq('id', playerId),
+    ]);
+    if (collectResult.error) throw new Error(collectResult.error.message);
+    if (invResult.error) throw new Error(invResult.error.message);
+
+    res.json({ ok: true, inventory, resourceType });
   } catch (err) {
     console.error('collect error:', err);
     res.status(500).json({ error: err.message });
   }
 });
 
-app.get('/api/players/nearby', (req, res) => {
+app.get('/api/players/nearby', async (req, res) => {
   const { lat, lng, playerId } = req.query;
-  const now  = Date.now();
-  const data = loadDb();
-  const players = Object.values(data.players).filter(p =>
-    p.id !== playerId &&
-    now - p.last_seen < 120_000 &&
-    Math.abs(p.lat - parseFloat(lat)) < 0.008 &&
-    Math.abs(p.lng - parseFloat(lng)) < 0.008
-  ).map(({ id, name, lat, lng }) => ({ id, name, lat, lng }));
-  res.json({ players });
+  const cutoff = Date.now() - 120_000;
+
+  const { data, error } = await db
+    .from('players')
+    .select('id, name, lat, lng')
+    .neq('id', playerId)
+    .gt('last_seen', cutoff)
+    .gte('lat', parseFloat(lat) - 0.008)
+    .lte('lat', parseFloat(lat) + 0.008)
+    .gte('lng', parseFloat(lng) - 0.008)
+    .lte('lng', parseFloat(lng) + 0.008);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ players: data });
 });
 
 app.listen(PORT, () =>
