@@ -109,28 +109,36 @@ app.get('/api/resources', (req, res) => {
 });
 
 app.post('/api/collect', (req, res) => {
-  const { playerId, gridX, gridY } = req.body;
-  const key  = `${gridX}_${gridY}`;
-  const now  = Date.now();
-  const data = loadDb();
+  try {
+    const { playerId, gridX, gridY } = req.body;
+    console.log('collect request:', { playerId, gridX, gridY });
 
-  const resourceType = getResourceType(gridX, gridY);
-  if (!resourceType) return res.status(400).json({ error: 'no resource at this cell' });
+    const key  = `${gridX}_${gridY}`;
+    const now  = Date.now();
+    const data = loadDb();
 
-  const existing = data.collected[key];
-  if (existing && now - existing.collected_at < RESPAWN_MS) {
-    const respawnsIn = Math.ceil((RESPAWN_MS - (now - existing.collected_at)) / 1000);
-    return res.status(409).json({ error: 'already collected', respawnsIn });
+    const resourceType = getResourceType(Number(gridX), Number(gridY));
+    if (!resourceType) return res.status(400).json({ error: 'no resource at this cell' });
+
+    const existing = data.collected[key];
+    if (existing && now - existing.collected_at < RESPAWN_MS) {
+      const respawnsIn = Math.ceil((RESPAWN_MS - (now - existing.collected_at)) / 1000);
+      return res.status(409).json({ error: 'already collected', respawnsIn });
+    }
+
+    const player = data.players[playerId];
+    if (!player) return res.status(404).json({ error: 'player not found' });
+
+    data.collected[key] = { collected_by: playerId, collected_at: now, resource_type: resourceType };
+    player.inventory[resourceType] = (player.inventory[resourceType] || 0) + 1;
+
+    saveDb(data);
+    console.log('collect ok:', resourceType, 'for', player.name);
+    res.json({ ok: true, inventory: player.inventory, resourceType });
+  } catch (err) {
+    console.error('collect error:', err);
+    res.status(500).json({ error: err.message });
   }
-
-  const player = data.players[playerId];
-  if (!player) return res.status(404).json({ error: 'player not found' });
-
-  data.collected[key] = { collected_by: playerId, collected_at: now, resource_type: resourceType };
-  player.inventory[resourceType] = (player.inventory[resourceType] || 0) + 1;
-
-  saveDb(data);
-  res.json({ ok: true, inventory: player.inventory, resourceType });
 });
 
 app.get('/api/players/nearby', (req, res) => {

@@ -1,16 +1,16 @@
-/* ── Reset & Base ─────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
   --bg:       #12121f;
   --bg2:      #1a1a2e;
-  --bg3:      #20203a;
   --gold:     #ffd700;
-  --gold-dim: rgba(255,215,0,0.15);
+  --gold-dim: rgba(255,215,0,0.12);
   --text:     #e0d8c8;
   --dim:      #5a5a7a;
   --border:   rgba(255,215,0,0.18);
   --font:     'Georgia', serif;
+  --top-h:    48px;
+  --bot-h:    58px;
 }
 
 body {
@@ -19,12 +19,13 @@ body {
   color: var(--text);
   height: 100dvh;
   overflow: hidden;
+  touch-action: manipulation; /* disables double-tap zoom at browser level */
 }
 
 .hidden { display: none !important; }
 .dim    { color: var(--dim); }
 
-/* ── Login ─────────────────────────────────────────────────────────────── */
+/* ── Login ──────────────────────────────────────────────────────────── */
 #login-screen {
   height: 100dvh;
   display: flex;
@@ -64,10 +65,7 @@ h1 {
   margin-bottom: 32px;
 }
 
-.field {
-  text-align: left;
-  margin-bottom: 16px;
-}
+.field { text-align: left; margin-bottom: 16px; }
 
 .field label {
   display: block;
@@ -117,26 +115,92 @@ h1 {
 
 #start-btn:disabled { opacity: 0.5; cursor: default; }
 
-.hint {
-  font-size: 11px;
-  color: var(--dim);
-  margin-top: 16px;
-  line-height: 1.6;
-}
+.hint { font-size: 11px; color: var(--dim); margin-top: 16px; line-height: 1.6; }
 
-/* ── Game layout ───────────────────────────────────────────────────────── */
+/* ── Game layout ─────────────────────────────────────────────────────── */
 #game-screen {
   display: flex;
+  flex-direction: column;
   height: 100dvh;
+}
+
+/* ── Top bar ─────────────────────────────────────────────────────────── */
+#top-bar {
+  height: var(--top-h);
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  gap: 12px;
+  z-index: 1001;
+}
+
+#top-title {
+  font-size: 17px;
+  color: var(--gold);
+  font-weight: bold;
+  letter-spacing: 2px;
+  flex-shrink: 0;
+}
+
+#top-player {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  overflow: hidden;
+}
+
+#hero-name-top {
+  font-size: 14px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#hero-grid-top {
+  font-size: 10px;
+  font-family: monospace;
+  color: var(--dim);
+}
+
+#top-log-pill {
+  font-size: 12px;
+  color: #81c784;
+  background: rgba(129,199,132,0.12);
+  border: 1px solid rgba(129,199,132,0.3);
+  border-radius: 12px;
+  padding: 3px 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+  0%   { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ── Game body ───────────────────────────────────────────────────────── */
+#game-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  position: relative;
 }
 
 #map {
   flex: 1;
-  position: relative;
+  height: 100%;
   cursor: crosshair;
 }
 
-/* ── Grid canvas ───────────────────────────────────────────────────────── */
+/* ── Grid canvas ─────────────────────────────────────────────────────── */
 .grid-canvas {
   position: absolute;
   top: 0; left: 0;
@@ -144,44 +208,21 @@ h1 {
   z-index: 400;
 }
 
-/* ── Sidebar ───────────────────────────────────────────────────────────── */
-#sidebar {
+/* ── Side panel ──────────────────────────────────────────────────────── */
+#panel {
   width: 270px;
   flex-shrink: 0;
-  height: 100dvh;
+  height: 100%;
   background: linear-gradient(180deg, var(--bg2) 0%, var(--bg) 100%);
   border-left: 1px solid var(--border);
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-.sidebar-hero {
-  padding: 18px 20px;
-  background: var(--gold-dim);
-  border-bottom: 1px solid var(--border);
-}
+.panel-section { padding: 16px 18px; }
 
-#hero-name {
-  font-size: 19px;
-  color: var(--gold);
-  font-weight: bold;
-  margin-bottom: 2px;
-}
-
-#hero-grid {
-  font-size: 11px;
-  font-family: monospace;
-}
-
-.section {
-  padding: 16px 18px;
-  border-bottom: 1px solid rgba(255,255,255,0.04);
-}
-
-.section-title {
+.panel-heading {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
@@ -189,7 +230,7 @@ h1 {
   margin-bottom: 12px;
 }
 
-/* ── Inventory ─────────────────────────────────────────────────────────── */
+/* ── Inventory grid ──────────────────────────────────────────────────── */
 #inventory {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -206,12 +247,11 @@ h1 {
 }
 
 .inv-cell:hover { border-color: var(--border); }
-
 .inv-icon  { font-size: 22px; display: block; }
 .inv-count { font-size: 14px; color: var(--gold); font-weight: bold; margin: 2px 0 1px; }
 .inv-label { font-size: 9px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; }
 
-/* ── Nearby players ────────────────────────────────────────────────────── */
+/* ── Nearby players ──────────────────────────────────────────────────── */
 .player-row {
   display: flex;
   align-items: center;
@@ -229,9 +269,9 @@ h1 {
   box-shadow: 0 0 6px #4fc3f7;
 }
 
-/* ── Activity log ──────────────────────────────────────────────────────── */
+/* ── Activity log ────────────────────────────────────────────────────── */
 #activity-log {
-  max-height: 180px;
+  max-height: 260px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -249,11 +289,62 @@ h1 {
 .log-row.move    { color: #64b5f6; }
 .log-row.warn    { color: #ffb74d; }
 
-/* ── Collect popup ─────────────────────────────────────────────────────── */
+/* ── Bottom tab bar ──────────────────────────────────────────────────── */
+#bottom-bar {
+  height: var(--bot-h);
+  flex-shrink: 0;
+  background: var(--bg2);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  z-index: 1001;
+}
+
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  border-top: 2px solid transparent;
+  color: var(--dim);
+  font-size: 20px;
+  cursor: pointer;
+  gap: 2px;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  padding: 0;
+  font-family: var(--font);
+}
+
+.tab span {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tab.active {
+  color: var(--gold);
+  border-top-color: var(--gold);
+  background: var(--gold-dim);
+}
+
+.tab.dim-tab {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.tab:hover:not(.active):not(.dim-tab) {
+  color: var(--text);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ── Collect popup ───────────────────────────────────────────────────── */
 #collect-popup {
   position: fixed;
-  top: 42%;
-  left: calc(50% - 135px); /* center of map area */
+  top: 44%;
+  left: 50%;
   transform: translate(-50%, -50%);
   background: rgba(18,18,31,0.95);
   border: 2px solid var(--gold);
@@ -265,6 +356,9 @@ h1 {
   animation: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
+/* Shift left when panel is open */
+#game-body:not(.panel-closed) #collect-popup { left: calc(50% - 135px); }
+
 #popup-icon { font-size: 48px; line-height: 1; }
 #popup-text { font-size: 18px; color: var(--gold); font-weight: bold; margin-top: 6px; }
 
@@ -273,11 +367,11 @@ h1 {
   to   { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
 }
 
-/* ── Zoom hint ─────────────────────────────────────────────────────────── */
+/* ── Zoom hint ───────────────────────────────────────────────────────── */
 #zoom-hint {
   position: fixed;
-  bottom: 24px;
-  left: calc(50% - 135px);
+  bottom: calc(var(--bot-h) + 14px);
+  left: 50%;
   transform: translateX(-50%);
   background: rgba(18,18,31,0.88);
   border: 1px solid var(--border);
@@ -289,7 +383,7 @@ h1 {
   z-index: 1000;
 }
 
-/* ── Leaflet overrides ─────────────────────────────────────────────────── */
+/* ── Leaflet overrides ───────────────────────────────────────────────── */
 .leaflet-container { background: #1a1a2e; }
 
 .res-tooltip.leaflet-tooltip {
@@ -303,7 +397,6 @@ h1 {
   box-shadow: 0 2px 12px rgba(0,0,0,0.5) !important;
 }
 
-/* player marker */
 .hero-icon {
   display: flex;
   align-items: center;

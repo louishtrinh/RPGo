@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RPGo – Heroes of the Real World</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RPG-Go</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -13,46 +13,72 @@
   <div id="login-screen">
     <div class="login-box">
       <div class="login-logo">⚔️</div>
-      <h1>RPGo</h1>
+      <h1>RPG-Go</h1>
       <p class="subtitle">Heroes of the Real World</p>
-
       <div class="field">
         <label>Your Hero Name</label>
         <input id="player-name" type="text" placeholder="Enter a name…" maxlength="20" autocomplete="off">
       </div>
-
       <button id="start-btn" onclick="startGame()">Begin Adventure</button>
-      <p class="hint">Uses your device location to place you on the map.<br>Click anywhere on the map to move your hero.</p>
+      <p class="hint">Uses your location to place you on the map.<br>Click anywhere on the map to move your hero.</p>
     </div>
   </div>
 
   <!-- ── Game ────────────────────────────────────────────────────────── -->
   <div id="game-screen" class="hidden">
-    <div id="map"></div>
 
-    <div id="sidebar">
-      <div class="sidebar-hero">
-        <div id="hero-name">⚔️ Hero</div>
-        <div id="hero-grid" class="dim">Grid —</div>
+    <!-- Top bar -->
+    <div id="top-bar">
+      <div id="top-title">⚔️ RPG-Go</div>
+      <div id="top-player">
+        <span id="hero-name-top">—</span>
+        <span id="hero-grid-top" class="dim"></span>
       </div>
+      <div id="top-log-pill" class="hidden"></div>
+    </div>
 
-      <div class="section">
-        <div class="section-title">📦 Inventory</div>
-        <div id="inventory"></div>
-      </div>
+    <!-- Main area: map + optional panel -->
+    <div id="game-body">
+      <div id="map"></div>
 
-      <div class="section">
-        <div class="section-title">👥 Nearby Heroes</div>
-        <div id="nearby-players"><span class="dim">Scanning…</span></div>
-      </div>
+      <!-- Slide-in panel (hidden when Map tab active) -->
+      <div id="panel" class="hidden">
 
-      <div class="section">
-        <div class="section-title">📜 Log</div>
-        <div id="activity-log"></div>
+        <div id="panel-bag" class="panel-section hidden">
+          <div class="panel-heading">🎒 Inventory</div>
+          <div id="inventory"></div>
+        </div>
+
+        <div id="panel-world" class="panel-section hidden">
+          <div class="panel-heading">👥 Nearby Heroes</div>
+          <div id="nearby-players"><span class="dim">Scanning…</span></div>
+          <div class="panel-heading" style="margin-top:16px">📜 Activity Log</div>
+          <div id="activity-log"></div>
+        </div>
+
+        <div id="panel-town" class="panel-section hidden">
+          <div class="panel-heading">🏘️ Town</div>
+          <p class="dim" style="font-size:13px;padding:8px 0">Town building coming soon.</p>
+        </div>
+
+        <div id="panel-skills" class="panel-section hidden">
+          <div class="panel-heading">⚔️ Skills</div>
+          <p class="dim" style="font-size:13px;padding:8px 0">Skills &amp; prestige coming soon.</p>
+        </div>
+
       </div>
     </div>
 
-    <!-- Floating collect popup -->
+    <!-- Bottom tab bar -->
+    <div id="bottom-bar">
+      <button class="tab active" data-tab="map"    onclick="setTab(this)">🗺️<span>Map</span></button>
+      <button class="tab"        data-tab="bag"    onclick="setTab(this)">🎒<span>Bag</span></button>
+      <button class="tab"        data-tab="world"  onclick="setTab(this)">🌐<span>World</span></button>
+      <button class="tab dim-tab" data-tab="town"  onclick="setTab(this)">🏘️<span>Town</span></button>
+      <button class="tab dim-tab" data-tab="skills" onclick="setTab(this)">⚔️<span>Skills</span></button>
+    </div>
+
+    <!-- Collect popup -->
     <div id="collect-popup" class="hidden">
       <div id="popup-icon"></div>
       <div id="popup-text"></div>
@@ -60,6 +86,7 @@
 
     <!-- Zoom hint -->
     <div id="zoom-hint" class="hidden">Zoom in to see resources</div>
+
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
